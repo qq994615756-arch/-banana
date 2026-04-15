@@ -76,23 +76,66 @@ export function AuthModal({ open, onOpenChange }: AuthModalProps) {
     }
   }
 
+  // 核心修改点：加入向后端服务器发送 Google Token 的真实逻辑模版
   const handleSocialLogin = async (provider: string) => {
     setIsLoading(true)
     try {
-      // Simulate API call
-      await new Promise(resolve => setTimeout(resolve, 1000))
-      setUser({
-        id: "user-1",
-        name: "User",
-        email: `user@${provider}.com`,
-        plan: "free",
-      })
-      toast.success("Login successful!")
-      onOpenChange(false)
-      resetForm()
-      setStep("choose")
-    } catch {
-      toast.error("Login failed, please try again")
+      if (provider === "google") {
+        // ========== 真实联调代码块说明 ==========
+        // 如果你使用了 @react-oauth/google 等库拿到了 Google 给的 credential
+        // 请替换这部分代码，发送真实的 fetch 请求：
+        /* const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
+        const res = await fetch(`${apiUrl}/api/auth/google`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ token: "这里传入你拿到的Google_Credential" })
+        });
+        const data = await res.json();
+        
+        if (data.code === 0) {
+          // 这里同时传入了 data.data.token，触发 Zustand 存储 token
+          setUser(data.data.user, data.data.token);
+          toast.success("Google 登录成功！");
+          onOpenChange(false);
+          resetForm();
+          setStep("choose");
+          return;
+        } else {
+          throw new Error(data.msg || "Google 验证失败");
+        }
+        */
+        // ==========================================
+
+        // 为了让你在没有跑通 Google 返回 Credential 的情况下也能测试画图接口
+        // 这里我默认模拟生成了一个 mock-token-123 存入 Zustand
+        await new Promise(resolve => setTimeout(resolve, 1000))
+        setUser({
+          id: "user-1",
+          name: "Google User",
+          email: `user@${provider}.com`,
+          plan: "free",
+        }, "mock-token-123") // 核心修改：模拟派发一个 Token
+        toast.success("模拟 Google 登录成功，Token 已保存!")
+        onOpenChange(false)
+        resetForm()
+        setStep("choose")
+
+      } else {
+        // 其他社交平台的默认模拟
+        await new Promise(resolve => setTimeout(resolve, 1000))
+        setUser({
+          id: "user-1",
+          name: "User",
+          email: `user@${provider}.com`,
+          plan: "free",
+        }, "mock-token-123") // 同样模拟派发 Token
+        toast.success("Login successful!")
+        onOpenChange(false)
+        resetForm()
+        setStep("choose")
+      }
+    } catch (err: any) {
+      toast.error(err.message || "Login failed, please try again")
     } finally {
       setIsLoading(false)
     }
@@ -113,7 +156,7 @@ export function AuthModal({ open, onOpenChange }: AuthModalProps) {
         name: "User",
         email: email,
         plan: "pro",
-      })
+      }, "mock-token-123") // 核心修改：派发模拟 token 支持测试
       toast.success("Welcome back!")
       onOpenChange(false)
       resetForm()
@@ -150,7 +193,7 @@ export function AuthModal({ open, onOpenChange }: AuthModalProps) {
         name: "New User",
         email: email,
         plan: "free",
-      })
+      }, "mock-token-123") // 核心修改：派发模拟 token 支持测试
       toast.success("Registration successful!")
       onOpenChange(false)
       resetForm()
