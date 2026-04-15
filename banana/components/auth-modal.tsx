@@ -8,7 +8,7 @@ import { VisuallyHidden } from "@radix-ui/react-visually-hidden"
 import { Mail, ArrowLeft, Eye, EyeOff } from "lucide-react"
 import { useAppStore } from "@/lib/store"
 import { toast } from "sonner"
-import { useGoogleLogin } from '@react-oauth/google' // 新增真实的 Google Hooks
+import { useGoogleLogin } from '@react-oauth/google'
 
 // Social Icons
 function GoogleIcon() {
@@ -77,13 +77,11 @@ export function AuthModal({ open, onOpenChange }: AuthModalProps) {
     }
   }
 
-  // 核心安全修复：使用 useGoogleLogin 隐式唤起真实弹窗，保留你漂亮的自定义按钮 UI
   const loginWithGoogle = useGoogleLogin({
     onSuccess: async (tokenResponse) => {
       setIsLoading(true)
       try {
         const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
-        // 将真实的 access_token 发送给你的 Node.js 服务器验证
         const res = await fetch(`${apiUrl}/api/auth/google`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -93,7 +91,6 @@ export function AuthModal({ open, onOpenChange }: AuthModalProps) {
         const data = await res.json();
         
         if (data.code === 0) {
-          // 获取后端颁发的真实安全 Token
           setUser(data.data.user, data.data.token);
           toast.success("登录成功！");
           onOpenChange(false);
@@ -102,8 +99,9 @@ export function AuthModal({ open, onOpenChange }: AuthModalProps) {
         } else {
           throw new Error(data.msg || "后端验证失败");
         }
-      } catch (err: any) {
-        toast.error(err.message || "服务器连接失败，请稍后再试");
+      } catch (err) {
+        const error = err as Error;
+        toast.error(error.message || "服务器连接失败，请稍后再试");
       } finally {
         setIsLoading(false)
       }
@@ -113,14 +111,12 @@ export function AuthModal({ open, onOpenChange }: AuthModalProps) {
 
   const handleSocialLogin = async (provider: string) => {
     if (provider === "google") {
-      // 真实触发 Google 授权
       loginWithGoogle();
     } else {
       toast.info("该登录方式暂未开放，请使用 Google 登录");
     }
   }
 
-  // 安全修复：暂时封堵未实现后端的邮箱登录，防止假 Token 漏洞
   const handleEmailLogin = async () => {
     toast.info("邮箱系统正在维护升级中，请暂时使用 Google 快捷登录。");
   }
@@ -129,7 +125,6 @@ export function AuthModal({ open, onOpenChange }: AuthModalProps) {
     toast.info("邮箱注册系统正在维护升级中，请暂时使用 Google 快捷登录。");
   }
 
-  // 下方 UI 渲染代码全部保持原样 100% 完美不变
   const renderChooseStep = () => (
     <div className="space-y-6">
       <div className="text-center">
@@ -194,9 +189,9 @@ export function AuthModal({ open, onOpenChange }: AuthModalProps) {
       </p>
       <p className="text-center text-xs text-muted-foreground">
         By continuing, you agree to our{" "}
-        <a href="#" className="text-blue-500 hover:underline">Terms</a>
+        <button type="button" className="text-blue-500 hover:underline">Terms</button>
         {" & "}
-        <a href="#" className="text-blue-500 hover:underline">Privacy</a>
+        <button type="button" className="text-blue-500 hover:underline">Privacy</button>
       </p>
     </div>
   )
@@ -270,9 +265,9 @@ export function AuthModal({ open, onOpenChange }: AuthModalProps) {
       </p>
       <p className="text-center text-xs text-muted-foreground">
         By continuing, you agree to our{" "}
-        <a href="#" className="text-blue-500 hover:underline">Terms</a>
+        <button type="button" className="text-blue-500 hover:underline">Terms</button>
         {" & "}
-        <a href="#" className="text-blue-500 hover:underline">Privacy</a>
+        <button type="button" className="text-blue-500 hover:underline">Privacy</button>
       </p>
     </div>
   )
@@ -366,9 +361,9 @@ export function AuthModal({ open, onOpenChange }: AuthModalProps) {
       </p>
       <p className="text-center text-xs text-muted-foreground">
         By continuing, you agree to our{" "}
-        <a href="#" className="text-blue-500 hover:underline">Terms</a>
+        <button type="button" className="text-blue-500 hover:underline">Terms</button>
         {" & "}
-        <a href="#" className="text-blue-500 hover:underline">Privacy</a>
+        <button type="button" className="text-blue-500 hover:underline">Privacy</button>
       </p>
     </div>
   )
