@@ -1,3 +1,17 @@
+import { GoogleOAuthProvider } from '@react-oauth/google';
+
+export default function RootLayout({ children }: { children: React.ReactNode }) {
+  return (
+    <html lang="en">
+      <body>
+        {/* 新增这一层，填入你在 Google Cloud 申请的 Client ID */}
+        <GoogleOAuthProvider clientId="你的_GOOGLE_CLIENT_ID.apps.googleusercontent.com">
+           {children}
+        </GoogleOAuthProvider>
+      </body>
+    </html>
+  )
+}
 import type { Metadata, Viewport } from "next"
 import { Geist, Geist_Mono } from "next/font/google"
 import { Analytics } from "@vercel/analytics/next"
