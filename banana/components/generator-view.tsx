@@ -1,3 +1,4 @@
+/* eslint-disable @next/next/no-img-element */
 "use client"
 
 import { useState, useRef, useEffect, useCallback } from "react"
@@ -70,14 +71,6 @@ const resolutions = [
 // Quantity options
 const quantities = [1, 2, 3, 4, 5, 6, 7, 8]
 
-// Sample generated images (保留供容错或占位使用)
-const sampleImages = [
-  "https://images.unsplash.com/photo-1506905925346-21bda4d32df4?w=512&h=512&fit=crop",
-  "https://images.unsplash.com/photo-1469474968028-56623f02e42e?w=512&h=512&fit=crop",
-  "https://images.unsplash.com/photo-1447752875215-b2761acb3c5d?w=512&h=512&fit=crop",
-  "https://images.unsplash.com/photo-1433086966358-54859d0ed716?w=512&h=512&fit=crop",
-]
-
 // Download image
 async function downloadImage(url: string, filename: string) {
   try {
@@ -142,67 +135,6 @@ function GeneratingImagesSkeleton({ quantity }: { quantity: number }) {
             </div>
           </div>
         ))}
-      </div>
-    </div>
-  )
-}
-
-// Empty state component
-function EmptyState({ onStartCreating }: { onStartCreating: () => void }) {
-  return (
-    <div className="flex-1 flex items-center justify-center bg-background p-6 lg:p-12">
-      <div className="w-full max-w-xl text-center">
-        {/* Illustration */}
-        <div className="relative mb-8">
-          <div className="w-32 h-32 mx-auto rounded-3xl bg-gradient-to-br from-blue-100 to-purple-100 dark:from-blue-900/30 dark:to-purple-900/30 flex items-center justify-center">
-            <div className="relative">
-              <ImageIcon className="h-16 w-16 text-blue-500/80" />
-              <Sparkles className="absolute -top-2 -right-2 h-6 w-6 text-yellow-500 animate-pulse" />
-            </div>
-          </div>
-          {/* Decorative dots */}
-          <div className="absolute top-0 left-1/4 w-3 h-3 rounded-full bg-blue-400/40 animate-bounce" style={{ animationDelay: '0.1s' }} />
-          <div className="absolute bottom-4 right-1/4 w-2 h-2 rounded-full bg-purple-400/40 animate-bounce" style={{ animationDelay: '0.3s' }} />
-          <div className="absolute top-8 right-1/3 w-2 h-2 rounded-full bg-yellow-400/40 animate-bounce" style={{ animationDelay: '0.5s' }} />
-        </div>
-
-        {/* Text */}
-        <h2 className="text-2xl font-bold text-foreground mb-3">
-          Start Your Creative Journey
-        </h2>
-        <p className="text-muted-foreground mb-8 max-w-md mx-auto leading-relaxed">
-          Enter a prompt to create your first AI-generated image. Describe any scene, style, or concept - the only limit is your imagination.
-        </p>
-
-        {/* Example prompts */}
-        <div className="space-y-3 mb-8">
-          <p className="text-sm text-muted-foreground font-medium">Try these prompts:</p>
-          <div className="flex flex-wrap justify-center gap-2">
-            {[
-              "A sunset over ancient city ruins",
-              "Cyberpunk cat in neon lights",
-              "Magical forest with glowing mushrooms",
-            ].map((prompt, idx) => (
-              <button
-                key={idx}
-                onClick={onStartCreating}
-                className="px-4 py-2 rounded-full bg-muted/60 hover:bg-muted text-sm text-muted-foreground hover:text-foreground transition-colors border border-border/50"
-              >
-                {prompt}
-              </button>
-            ))}
-          </div>
-        </div>
-
-        {/* CTA */}
-        <Button
-          size="lg"
-          onClick={onStartCreating}
-          className="gap-2 h-12 px-8 rounded-xl bg-foreground hover:bg-foreground/90 text-background shadow-lg"
-        >
-          <Wand2 className="h-5 w-5" />
-          Start Creating
-        </Button>
       </div>
     </div>
   )
@@ -461,7 +393,6 @@ function InputPanel({
 }
 
 export function GeneratorView() {
-  // 核心修改点：解构出 token 和 setAuthDialogOpen 用来拦截未登录操作
   const { models, selectedModel, setSelectedModel, currentProject, projectMessages, setProjectMessages, token, setAuthDialogOpen } = useAppStore()
 
   const messages: ChatMessage[] = currentProject ? (projectMessages[currentProject.id] ?? []) : []
@@ -478,7 +409,6 @@ export function GeneratorView() {
   const [lightboxIndex, setLightboxIndex] = useState(0)
   const fileInputRef = useRef<HTMLInputElement>(null)
   const messagesEndRef = useRef<HTMLDivElement>(null)
-  const inputRef = useRef<HTMLTextAreaElement>(null)
 
   const hasMessages = messages.length > 0
 
@@ -500,14 +430,13 @@ export function GeneratorView() {
     if (!input.trim() && attachments.length === 0) return
     if (!currentProject) return
     
-    // 核心修改点：点击生成前检查 Token，未登录弹出登录框
     if (!token) {
       toast.error("请先登录后使用 AI 绘画功能")
       setAuthDialogOpen(true)
       return
     }
 
-    if (isLoading) return // Prevent double submission
+    if (isLoading) return 
 
     const userMessage: ChatMessage = {
       id: `msg-${Date.now()}`,
@@ -534,7 +463,6 @@ export function GeneratorView() {
     setIsLoading(true)
 
     try {
-      // 核心修改点：对接后端真实 API 请求
       let generatedImages: string[] = [];
       const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
       
@@ -542,15 +470,15 @@ export function GeneratorView() {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}` // 携带 Token 以供后端验证
+          'Authorization': `Bearer ${token}` 
         },
         body: JSON.stringify({
-          prompt: input.trim(),
+          prompt: userMessage.content,
           model: selectedModel?.id,
           ratio: selectedRatio,
           resolution: selectedResolution,
           quantity: selectedQuantity,
-          images: attachmentPreviews.length > 0 ? attachmentPreviews : undefined,
+          images: userMessage.images,
         }),
       });
 
@@ -566,7 +494,6 @@ export function GeneratorView() {
         throw new Error("服务器未返回有效的图片");
       }
 
-      // 更新消息列表
       const latestMessages = useAppStore.getState().projectMessages[currentProject.id] ?? withUserAndPlaceholder
       const updatedMessages = [...latestMessages]
       const lastIndex = updatedMessages.length - 1
@@ -578,18 +505,18 @@ export function GeneratorView() {
       }
       setProjectMessages(currentProject.id, updatedMessages)
       toast.success(`Successfully generated ${selectedQuantity} image${selectedQuantity > 1 ? 's' : ''}!`)
-    } catch (error: any) {
-      // Handle error - remove placeholder and show error toast
+    } catch (error) {
+      const err = error as Error
       const latestMessages = useAppStore.getState().projectMessages[currentProject.id] ?? withUserAndPlaceholder
       const updatedMessages = [...latestMessages]
       const lastIndex = updatedMessages.length - 1
       updatedMessages[lastIndex] = {
         ...updatedMessages[lastIndex],
-        content: error.message || "Image generation failed. Please try again.",
+        content: err.message || "Image generation failed. Please try again.",
         isGenerating: false,
       }
       setProjectMessages(currentProject.id, updatedMessages)
-      toast.error(error.message || "Generation failed. Please try again.")
+      toast.error(err.message || "Generation failed. Please try again.")
     } finally {
       setIsLoading(false)
     }
@@ -621,10 +548,6 @@ export function GeneratorView() {
 
   const handleFileClick = useCallback(() => {
     fileInputRef.current?.click()
-  }, [])
-
-  const focusInput = useCallback(() => {
-    inputRef.current?.focus()
   }, [])
 
   const inputPanelProps: InputPanelProps = {
