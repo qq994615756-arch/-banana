@@ -464,9 +464,11 @@ export function GeneratorView() {
 
     try {
       let generatedImages: string[] = [];
-      const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
+      const configuredApiUrl = process.env.NEXT_PUBLIC_API_URL?.trim()
+      const fallbackApiUrl = typeof window !== "undefined" ? window.location.origin : ""
+      const apiBaseUrl = (configuredApiUrl || fallbackApiUrl).replace(/\/$/, "")
       
-      const response = await fetch(`${apiUrl}/api/generate`, {
+      const response = await fetch(`${apiBaseUrl}/api/generate`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

@@ -86,8 +86,10 @@ export function AuthModal({ open, onOpenChange }: AuthModalProps) {
     onSuccess: async (tokenResponse) => {
       setIsLoading(true)
       try {
-        const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
-        const res = await fetch(`${apiUrl}/api/auth/google`, {
+        const configuredApiUrl = process.env.NEXT_PUBLIC_API_URL?.trim()
+        const fallbackApiUrl = typeof window !== "undefined" ? window.location.origin : ""
+        const apiBaseUrl = (configuredApiUrl || fallbackApiUrl).replace(/\/$/, "")
+        const res = await fetch(`${apiBaseUrl}/api/auth/google`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ token: tokenResponse.access_token }) 
