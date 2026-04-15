@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useMemo, useState } from "react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Dialog, DialogContent, DialogTitle, DialogDescription } from "@/components/ui/dialog"
@@ -58,6 +58,11 @@ export function AuthModal({ open, onOpenChange }: AuthModalProps) {
   const [inviteCode, setInviteCode] = useState("")
   
   const { setUser } = useAppStore()
+  const isGoogleLoginEnabled = useMemo(() => {
+    if (typeof window === "undefined") return true
+    const allowedHosts = new Set(["localhost", "127.0.0.1", "banana-six-mu.vercel.app"])
+    return allowedHosts.has(window.location.hostname)
+  }, [])
 
   const resetForm = () => {
     setEmail("")
@@ -111,6 +116,10 @@ export function AuthModal({ open, onOpenChange }: AuthModalProps) {
 
   const handleSocialLogin = async (provider: string) => {
     if (provider === "google") {
+      if (!isGoogleLoginEnabled) {
+        toast.info("预览环境暂不支持 Google 登录，请使用正式域名访问。")
+        return
+      }
       loginWithGoogle();
     } else {
       toast.info("该登录方式暂未开放，请使用 Google 登录");
@@ -139,7 +148,7 @@ export function AuthModal({ open, onOpenChange }: AuthModalProps) {
             size="lg"
             className="w-14 h-12 rounded-xl border-border hover:bg-muted transition-colors"
             onClick={() => handleSocialLogin("google")}
-            disabled={isLoading}
+            disabled={isLoading || !isGoogleLoginEnabled}
           >
             <GoogleIcon />
           </Button>
@@ -162,6 +171,11 @@ export function AuthModal({ open, onOpenChange }: AuthModalProps) {
             <CatIcon />
           </Button>
         </div>
+        {!isGoogleLoginEnabled && (
+          <p className="text-center text-xs text-amber-600">
+            预览环境已禁用 Google 登录，请使用正式域名访问。
+          </p>
+        )}
       </div>
       <div className="flex items-center gap-3">
         <div className="flex-1 h-px bg-border" />
