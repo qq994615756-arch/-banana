@@ -70,7 +70,7 @@ const resolutions = [
 // Quantity options
 const quantities = [1, 2, 3, 4, 5, 6, 7, 8]
 
-// Sample generated images
+// Sample generated images (保留供容错或占位使用)
 const sampleImages = [
   "https://images.unsplash.com/photo-1506905925346-21bda4d32df4?w=512&h=512&fit=crop",
   "https://images.unsplash.com/photo-1469474968028-56623f02e42e?w=512&h=512&fit=crop",
@@ -461,7 +461,8 @@ function InputPanel({
 }
 
 export function GeneratorView() {
-  const { models, selectedModel, setSelectedModel, currentProject, projectMessages, setProjectMessages } = useAppStore()
+  // 核心修改点：解构出 token 和 setAuthDialogOpen 用来拦截未登录操作
+  const { models, selectedModel, setSelectedModel, currentProject, projectMessages, setProjectMessages, token, setAuthDialogOpen } = useAppStore()
 
   const messages: ChatMessage[] = currentProject ? (projectMessages[currentProject.id] ?? []) : []
 
@@ -498,6 +499,14 @@ export function GeneratorView() {
   const handleSubmit = useCallback(async () => {
     if (!input.trim() && attachments.length === 0) return
     if (!currentProject) return
+    
+    // 核心修改点：点击生成前检查 Token，未登录弹出登录框
+    if (!token) {
+      toast.error("请先登录后使用 AI 绘画功能")
+      setAuthDialogOpen(true)
+      return
+    }
+
     if (isLoading) return // Prevent double submission
 
     const userMessage: ChatMessage = {
@@ -525,22 +534,39 @@ export function GeneratorView() {
     setIsLoading(true)
 
     try {
-      // Simulate API call with potential failure
-      await new Promise((resolve, reject) => {
-        setTimeout(() => {
-          // Simulate random failure (10% chance)
-          if (Math.random() < 0.1) {
-            reject(new Error("API Error"))
-          } else {
-            resolve(true)
-          }
-        }, 2000)
-      })
+      // 核心修改点：对接后端真实 API 请求
+      let generatedImages: string[] = [];
+      const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
+      
+      const response = await fetch(`${apiUrl}/api/generate`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}` // 携带 Token 以供后端验证
+        },
+        body: JSON.stringify({
+          prompt: input.trim(),
+          model: selectedModel?.id,
+          ratio: selectedRatio,
+          resolution: selectedResolution,
+          quantity: selectedQuantity,
+          images: attachmentPreviews.length > 0 ? attachmentPreviews : undefined,
+        }),
+      });
 
-      const generatedImages = Array.from({ length: selectedQuantity }, (_, i) =>
-        sampleImages[i % sampleImages.length]
-      )
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.error || errorData.message || "API 请求失败");
+      }
 
+      const responseData = await response.json();
+      generatedImages = responseData.images;
+
+      if (!generatedImages || generatedImages.length === 0) {
+        throw new Error("服务器未返回有效的图片");
+      }
+
+      // 更新消息列表
       const latestMessages = useAppStore.getState().projectMessages[currentProject.id] ?? withUserAndPlaceholder
       const updatedMessages = [...latestMessages]
       const lastIndex = updatedMessages.length - 1
@@ -552,22 +578,22 @@ export function GeneratorView() {
       }
       setProjectMessages(currentProject.id, updatedMessages)
       toast.success(`Successfully generated ${selectedQuantity} image${selectedQuantity > 1 ? 's' : ''}!`)
-    } catch {
+    } catch (error: any) {
       // Handle error - remove placeholder and show error toast
       const latestMessages = useAppStore.getState().projectMessages[currentProject.id] ?? withUserAndPlaceholder
       const updatedMessages = [...latestMessages]
       const lastIndex = updatedMessages.length - 1
       updatedMessages[lastIndex] = {
         ...updatedMessages[lastIndex],
-        content: "Image generation failed. Please try again.",
+        content: error.message || "Image generation failed. Please try again.",
         isGenerating: false,
       }
       setProjectMessages(currentProject.id, updatedMessages)
-      toast.error("Generation failed. Please try again.")
+      toast.error(error.message || "Generation failed. Please try again.")
     } finally {
       setIsLoading(false)
     }
-  }, [input, attachments, attachmentPreviews, currentProject, selectedQuantity, selectedRatio, selectedResolution, projectMessages, setProjectMessages, isLoading])
+  }, [input, attachments, attachmentPreviews, currentProject, selectedQuantity, selectedRatio, selectedResolution, projectMessages, setProjectMessages, isLoading, token, setAuthDialogOpen, selectedModel])
 
   const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = Array.from(e.target.files || [])
