@@ -27,14 +27,17 @@ function mapResolution(res) {
 // ================= 1. Google 登录接口 =================
 app.post('/api/auth/google', async (req, res) => {
   try {
-    const { token } = req.body;
-    const client = new OAuth2Client(GOOGLE_CLIENT_ID);
-    const ticket = await client.verifyIdToken({
-      idToken: token,
-      audience: GOOGLE_CLIENT_ID,
-    });
-    const payload = ticket.getPayload();
+    const { token } = req.body; // 前端传过来的 access_token
+
+    // 使用 access_token 向 Google 请求获取用户真实信息
+    const userInfoRes = await fetch(`https://www.googleapis.com/oauth2/v3/userinfo?access_token=${token}`);
+    const payload = await userInfoRes.json();
     
+    if (!userInfoRes.ok || !payload.sub) {
+      throw new Error('无效的 Google Token');
+    }
+
+    // 构造用户信息
     const userData = {
       id: payload.sub,
       email: payload.email,
@@ -42,9 +45,13 @@ app.post('/api/auth/google', async (req, res) => {
       avatar: payload.picture,
     };
 
+    // 生成你自己的 JWT Token
     const appToken = jwt.sign(userData, JWT_SECRET, { expiresIn: '7d' });
+    
+    // 返回给前端
     res.json({ code: 0, data: { token: appToken, user: userData } });
   } catch (error) {
+    console.error('Google Auth Error:', error.message);
     res.status(401).json({ code: -1, msg: 'Google 验证失败' });
   }
 });
