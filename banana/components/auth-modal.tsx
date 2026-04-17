@@ -60,8 +60,15 @@ export function AuthModal({ open, onOpenChange }: AuthModalProps) {
   const { setUser } = useAppStore()
   const isGoogleLoginEnabled = useMemo(() => {
     if (typeof window === "undefined") return true
-    const allowedHosts = new Set(["localhost", "127.0.0.1", "banana-six-mu.vercel.app"])
-    return allowedHosts.has(window.location.hostname)
+    const hostname = window.location.hostname
+    if (hostname === "localhost" || hostname === "127.0.0.1") return true
+    const appUrl = process.env.NEXT_PUBLIC_APP_URL
+    if (appUrl) {
+      try {
+        return hostname === new URL(appUrl).hostname
+      } catch {}
+    }
+    return false
   }, [])
 
   const resetForm = () => {
