@@ -491,35 +491,30 @@ export function GeneratorView() {
       const { taskId } = submitData
       if (!taskId) throw new Error("未获取到任务 ID")
 
-      // Poll every 3s until succeeded or failed
-      await new Promise<void>((resolve, reject) => {
-        const interval = setInterval(async () => {
-          try {
-            const statusRes = await fetch(`${apiBaseUrl}/api/generate/status?taskId=${encodeURIComponent(taskId)}`, {
-              headers: { Authorization: `Bearer ${token}` },
-            })
-            const statusData = await statusRes.json()
+      // Poll every 3s until succeeded or failed (max 2 minutes)
+      const deadline = Date.now() + 120_000
+      while (true) {
+        await new Promise((r) => setTimeout(r, 3000))
+        if (Date.now() > deadline) throw new Error("生成超时，请重试")
 
-            if (statusData.status === "succeeded") {
-              clearInterval(interval)
-              updateLastMessage({
-                content: `Generated 1 image\nRatio: ${selectedRatio} | Resolution: ${resolutions.find((r) => r.value === selectedResolution)?.label}`,
-                images: statusData.images,
-                isGenerating: false,
-              })
-              toast.success("Successfully generated 1 image!")
-              resolve()
-            } else if (statusData.status === "failed") {
-              clearInterval(interval)
-              reject(new Error(statusData.error || "生成失败"))
-            }
-            // "processing" — keep polling
-          } catch (err) {
-            clearInterval(interval)
-            reject(err)
-          }
-        }, 3000)
-      })
+        const statusRes = await fetch(`${apiBaseUrl}/api/generate/status?taskId=${encodeURIComponent(taskId)}`, {
+          headers: { Authorization: `Bearer ${token}` },
+        })
+        const statusData = await statusRes.json()
+
+        if (statusData.status === "succeeded") {
+          updateLastMessage({
+            content: `Generated 1 image\nRatio: ${selectedRatio} | Resolution: ${resolutions.find((r) => r.value === selectedResolution)?.label}`,
+            images: statusData.images,
+            isGenerating: false,
+          })
+          toast.success("Successfully generated 1 image!")
+          break
+        } else if (statusData.status === "failed") {
+          throw new Error(statusData.error || "生成失败")
+        }
+        // "processing" — keep polling
+      }
     } catch (error) {
       const err = error as Error
       updateLastMessage({
