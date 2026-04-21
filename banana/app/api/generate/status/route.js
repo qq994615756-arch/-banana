@@ -3,6 +3,7 @@ import jwt from "jsonwebtoken"
 export const runtime = "nodejs"
 
 const NANO_BASE_URL = process.env.NANO_BASE_URL || "https://grsai.dakka.com.cn"
+const NANO_API_KEY = process.env.NANO_API_KEY
 const JWT_SECRET = process.env.JWT_SECRET
 
 function getBearerToken(authHeader) {
@@ -36,13 +37,22 @@ export async function GET(request) {
   try {
     const resultRes = await fetch(`${NANO_BASE_URL}/v1/draw/result`, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${NANO_API_KEY}`,
+      },
       body: JSON.stringify({ id: taskId }),
     })
     const resultData = await resultRes.json()
+    console.log("Status API Response:", JSON.stringify(resultData))
 
     if (!resultRes.ok) {
       return Response.json({ status: "failed", error: resultData?.msg || "查询失败" })
+    }
+
+    // Upstream returned a non-zero code without a valid data.status
+    if (resultData?.code !== undefined && resultData.code !== 0) {
+      return Response.json({ status: "failed", error: resultData.msg || "查询返回异常状态码" })
     }
 
     const taskStatus = resultData?.data?.status
@@ -57,7 +67,13 @@ export async function GET(request) {
       return Response.json({ status: "failed", error: resultData?.data?.error || "生成失败" })
     }
 
-    return Response.json({ status: "processing" })
+    // Only return processing if taskStatus is a known in-progress value
+    if (taskStatus === "processing" || taskStatus === "pending" || taskStatus === "running") {
+      return Response.json({ status: "processing" })
+    }
+
+    // Unknown state — treat as error to avoid infinite polling
+    return Response.json({ status: "failed", error: `未知任务状态: ${taskStatus ?? "无"}` })
   } catch (error) {
     console.error("Status Poll Error:", error)
     return Response.json({ status: "failed", error: error?.message || "查询失败" })
