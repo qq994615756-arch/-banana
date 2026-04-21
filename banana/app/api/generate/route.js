@@ -6,6 +6,7 @@ const NANO_API_KEY = process.env.NANO_API_KEY
 const JWT_SECRET = process.env.JWT_SECRET
 const NANO_BASE_URL = process.env.NANO_BASE_URL || "https://grsai.dakka.com.cn"
 const DEFAULT_MODEL = process.env.NANO_MODEL || "nano-banana-pro"
+const MAX_POLL_MS = 120_000
 
 function mapResolution(resolution) {
   if (resolution >= 4096) return "4K"
@@ -23,8 +24,13 @@ function getBearerToken(authHeader) {
 }
 
 export async function POST(request) {
-  if (!NANO_API_KEY || !JWT_SECRET) {
-    return Response.json({ error: "Server config missing" }, { status: 500 })
+  if (!NANO_API_KEY) {
+    console.error("NANO_API_KEY is not configured")
+    return Response.json({ error: "图像生成服务未配置，请联系管理员" }, { status: 500 })
+  }
+  if (!JWT_SECRET) {
+    console.error("JWT_SECRET is not configured")
+    return Response.json({ error: "认证服务未配置，请联系管理员" }, { status: 500 })
   }
 
   const authHeader = request.headers.get("authorization")
@@ -39,9 +45,20 @@ export async function POST(request) {
     return Response.json({ error: "登录状态已失效，请重新登录" }, { status: 401 })
   }
 
+  let body
   try {
-    const { prompt, model, ratio, resolution, quantity, images } = await request.json()
+    body = await request.json()
+  } catch {
+    return Response.json({ error: "请求格式错误" }, { status: 400 })
+  }
 
+  const { prompt, model, ratio, resolution, quantity, images } = body
+
+  if (!prompt || typeof prompt !== "string" || prompt.trim().length === 0) {
+    return Response.json({ error: "请输入生成描述" }, { status: 400 })
+  }
+
+  try {
     const runTask = async () => {
       const submitRes = await fetch(`${NANO_BASE_URL}/v1/draw/nano-banana`, {
         method: "POST",
@@ -51,11 +68,11 @@ export async function POST(request) {
         },
         body: JSON.stringify({
           model: model || DEFAULT_MODEL,
-          prompt,
+          prompt: prompt.trim(),
           aspectRatio: ratio || "1:1",
-          imageSize: mapResolution(resolution),
+          imageSize: mapResolution(resolution || 1024),
           webHook: "-1",
-          urls: images,
+          urls: images || [],
         }),
       })
 
@@ -65,7 +82,9 @@ export async function POST(request) {
       }
 
       const taskId = submitData.data.id
-      while (true) {
+      const deadline = Date.now() + MAX_POLL_MS
+
+      while (Date.now() < deadline) {
         await sleep(3000)
 
         const resultRes = await fetch(`${NANO_BASE_URL}/v1/draw/result`, {
@@ -89,13 +108,15 @@ export async function POST(request) {
           throw new Error(resultData?.data?.error || "生成失败")
         }
       }
+
+      throw new Error("生成超时，请重试")
     }
 
-    const total = Number.isInteger(quantity) && quantity > 0 ? quantity : 1
+    const total = Number.isInteger(quantity) && quantity > 0 && quantity <= 8 ? quantity : 1
     const urls = await Promise.all(Array.from({ length: total }).map(() => runTask()))
     return Response.json({ images: urls })
   } catch (error) {
     console.error("Generate Error:", error)
-    return Response.json({ error: error?.message || "生成失败" }, { status: 500 })
+    return Response.json({ error: error?.message || "生成失败，请重试" }, { status: 500 })
   }
 }

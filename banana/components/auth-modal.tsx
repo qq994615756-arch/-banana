@@ -68,7 +68,8 @@ export function AuthModal({ open, onOpenChange }: AuthModalProps) {
         return hostname === new URL(appUrl).hostname
       } catch {}
     }
-    return false
+    // Allow any HTTPS deployment (Vercel, custom domain, etc.)
+    return window.location.protocol === "https:"
   }, [])
 
   const resetForm = () => {

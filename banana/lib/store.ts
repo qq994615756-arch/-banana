@@ -35,6 +35,10 @@ interface AppState {
   setSidebarOpen: (open: boolean) => void
   authDialogOpen: boolean
   setAuthDialogOpen: (open: boolean) => void
+  settingsOpen: boolean
+  setSettingsOpen: (open: boolean) => void
+  settingsTab: string
+  setSettingsTab: (tab: string) => void
 }
 
 const defaultModels: AIModel[] = [
@@ -64,13 +68,17 @@ export const useAppStore = create<AppState>()(
       setSelectedModel: (model) => set({ selectedModel: model }),
       user: null,
       token: null,
-      setUser: (user, token = null) => set({ user, token: token || get().token }),
+      setUser: (user, token = null) => set({ user, token: token !== undefined ? token : get().token }),
       settings: { theme: "light", language: "zh-CN", defaultModel: "nano-banana-pro", autoSave: true, gridSnap: true },
       updateSettings: (updates) => set((state) => ({ settings: { ...state.settings, ...updates } })),
       sidebarOpen: true,
       setSidebarOpen: (open) => set({ sidebarOpen: open }),
       authDialogOpen: false,
       setAuthDialogOpen: (open) => set({ authDialogOpen: open }),
+      settingsOpen: false,
+      setSettingsOpen: (open) => set({ settingsOpen: open }),
+      settingsTab: "general",
+      setSettingsTab: (tab) => set({ settingsTab: tab }),
     }),
     { name: "banana-storage" }
   )
