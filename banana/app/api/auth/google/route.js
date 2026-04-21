@@ -8,6 +8,11 @@ const ALLOWED_EMAILS = process.env.ALLOWED_EMAILS
   ? process.env.ALLOWED_EMAILS.split(",").map((e) => e.trim().toLowerCase())
   : null
 
+// Emails that get plan: "pro" — replace with your own email(s)
+const PRO_TEST_EMAILS = [
+  "your.email@gmail.com",
+]
+
 // Simple in-memory rate limiter: max 10 attempts per IP per 15 minutes
 const rateLimitMap = new Map()
 const RATE_LIMIT = 10
@@ -70,7 +75,7 @@ export async function POST(request) {
       email: payload.email,
       name: payload.name || payload.email,
       avatar: payload.picture || "",
-      plan: "free",
+      plan: PRO_TEST_EMAILS.includes(payload.email.toLowerCase()) ? "pro" : "free",
     }
 
     const appToken = jwt.sign(userData, JWT_SECRET, { expiresIn: "7d" })

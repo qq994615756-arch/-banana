@@ -462,67 +462,75 @@ export function GeneratorView() {
     setAttachmentPreviews([])
     setIsLoading(true)
 
+    const configuredApiUrl = process.env.NEXT_PUBLIC_API_URL?.trim()
+    const fallbackApiUrl = typeof window !== "undefined" ? window.location.origin : ""
+    const apiBaseUrl = (configuredApiUrl || fallbackApiUrl).replace(/\/$/, "")
+
+    const updateLastMessage = (updates: Partial<ChatMessage>) => {
+      const latest = useAppStore.getState().projectMessages[currentProject.id] ?? withUserAndPlaceholder
+      const msgs = [...latest]
+      msgs[msgs.length - 1] = { ...msgs[msgs.length - 1], ...updates }
+      setProjectMessages(currentProject.id, msgs)
+    }
+
     try {
-      let generatedImages: string[] = [];
-      const configuredApiUrl = process.env.NEXT_PUBLIC_API_URL?.trim()
-      const fallbackApiUrl = typeof window !== "undefined" ? window.location.origin : ""
-      const apiBaseUrl = (configuredApiUrl || fallbackApiUrl).replace(/\/$/, "")
-      
-      const response = await fetch(`${apiBaseUrl}/api/generate`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}` 
-        },
+      const submitRes = await fetch(`${apiBaseUrl}/api/generate`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
         body: JSON.stringify({
           prompt: userMessage.content,
           model: selectedModel?.id,
           ratio: selectedRatio,
           resolution: selectedResolution,
-          quantity: selectedQuantity,
           images: userMessage.images,
         }),
-      });
+      })
 
-      if (!response.ok) {
-        const errorData = await response.json().catch(() => ({}));
-        throw new Error(errorData.error || errorData.message || "API 请求失败");
-      }
+      const submitData = await submitRes.json()
+      if (!submitRes.ok) throw new Error(submitData.error || "提交失败")
+      const { taskId } = submitData
+      if (!taskId) throw new Error("未获取到任务 ID")
 
-      const responseData = await response.json();
-      generatedImages = responseData.images;
+      // Poll every 3s until succeeded or failed
+      await new Promise<void>((resolve, reject) => {
+        const interval = setInterval(async () => {
+          try {
+            const statusRes = await fetch(`${apiBaseUrl}/api/generate/status?taskId=${encodeURIComponent(taskId)}`, {
+              headers: { Authorization: `Bearer ${token}` },
+            })
+            const statusData = await statusRes.json()
 
-      if (!generatedImages || generatedImages.length === 0) {
-        throw new Error("服务器未返回有效的图片");
-      }
-
-      const latestMessages = useAppStore.getState().projectMessages[currentProject.id] ?? withUserAndPlaceholder
-      const updatedMessages = [...latestMessages]
-      const lastIndex = updatedMessages.length - 1
-      updatedMessages[lastIndex] = {
-        ...updatedMessages[lastIndex],
-        content: `Generated ${selectedQuantity} image${selectedQuantity > 1 ? 's' : ''}\nRatio: ${selectedRatio} | Resolution: ${resolutions.find((r) => r.value === selectedResolution)?.label}`,
-        images: generatedImages,
-        isGenerating: false,
-      }
-      setProjectMessages(currentProject.id, updatedMessages)
-      toast.success(`Successfully generated ${selectedQuantity} image${selectedQuantity > 1 ? 's' : ''}!`)
+            if (statusData.status === "succeeded") {
+              clearInterval(interval)
+              updateLastMessage({
+                content: `Generated 1 image\nRatio: ${selectedRatio} | Resolution: ${resolutions.find((r) => r.value === selectedResolution)?.label}`,
+                images: statusData.images,
+                isGenerating: false,
+              })
+              toast.success("Successfully generated 1 image!")
+              resolve()
+            } else if (statusData.status === "failed") {
+              clearInterval(interval)
+              reject(new Error(statusData.error || "生成失败"))
+            }
+            // "processing" — keep polling
+          } catch (err) {
+            clearInterval(interval)
+            reject(err)
+          }
+        }, 3000)
+      })
     } catch (error) {
       const err = error as Error
-      const latestMessages = useAppStore.getState().projectMessages[currentProject.id] ?? withUserAndPlaceholder
-      const updatedMessages = [...latestMessages]
-      const lastIndex = updatedMessages.length - 1
-      updatedMessages[lastIndex] = {
-        ...updatedMessages[lastIndex],
+      updateLastMessage({
         content: err.message || "Image generation failed. Please try again.",
         isGenerating: false,
-      }
-      setProjectMessages(currentProject.id, updatedMessages)
+      })
       toast.error(err.message || "Generation failed. Please try again.")
     } finally {
       setIsLoading(false)
     }
-  }, [input, attachments, attachmentPreviews, currentProject, selectedQuantity, selectedRatio, selectedResolution, projectMessages, setProjectMessages, isLoading, token, setAuthDialogOpen, selectedModel])
+  }, [input, attachments, attachmentPreviews, currentProject, selectedRatio, selectedResolution, projectMessages, setProjectMessages, isLoading, token, setAuthDialogOpen, selectedModel])
 
   const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = Array.from(e.target.files || [])
