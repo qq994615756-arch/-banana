@@ -10,7 +10,7 @@ const ALLOWED_EMAILS = process.env.ALLOWED_EMAILS
 
 // Emails that get plan: "pro" — replace with your own email(s)
 const PRO_TEST_EMAILS = [
-  "your.email@gmail.com",
+  "kevqi1010@gmail.com",
 ]
 
 // Simple in-memory rate limiter: max 10 attempts per IP per 15 minutes
