@@ -13,7 +13,7 @@ const PRO_TEST_EMAILS = [
   "kevqi1010@gmail.com",
 ]
 
-// Simple in-memory rate limiter: max 10 attempts per IP per 15 minutes
+// Simple in-memory rate limiter: maxcl 10 attempts per IP per 15 minutes
 const rateLimitMap = new Map()
 const RATE_LIMIT = 10
 const RATE_WINDOW_MS = 15 * 60 * 1000

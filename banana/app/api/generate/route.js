@@ -2,87 +2,104 @@ import jwt from "jsonwebtoken"
 
 export const runtime = "nodejs"
 
-const NANO_API_KEY = process.env.NANO_API_KEY
 const JWT_SECRET = process.env.JWT_SECRET
-const NANO_BASE_URL = process.env.NANO_BASE_URL || "https://grsai.dakka.com.cn"
-const DEFAULT_MODEL = process.env.NANO_MODEL || "nano-banana-pro"
+// 可选：逗号分隔的允许邮箱列表，例如 "a@b.com,c@d.com"
+const ALLOWED_EMAILS = process.env.ALLOWED_EMAILS
+  ? process.env.ALLOWED_EMAILS.split(",").map((e) => e.trim().toLowerCase())
+  : null
 
-function mapResolution(resolution) {
-  if (resolution >= 4096) return "4K"
-  if (resolution >= 2048) return "2K"
-  return "1K"
+// 获得 "pro" 方案的测试邮箱列表
+const PRO_TEST_EMAILS = [
+  "kevqi1010@gmail.com",
+  "1065499853@qq.com", // 将你的特殊邮箱也加入 Pro 列表
+]
+
+// 简单的内存频率限制：每个 IP 每 15 分钟最多 10 次尝试
+const rateLimitMap = new Map()
+const RATE_LIMIT = 10
+const RATE_WINDOW_MS = 15 * 60 * 1000
+
+function checkRateLimit(ip) {
+  const now = Date.now()
+  const entry = rateLimitMap.get(ip) || { count: 0, resetAt: now + RATE_WINDOW_MS }
+  if (now > entry.resetAt) {
+    entry.count = 0
+    entry.resetAt = now + RATE_WINDOW_MS
+  }
+  entry.count++
+  rateLimitMap.set(ip, entry)
+  return entry.count <= RATE_LIMIT
 }
 
-function getBearerToken(authHeader) {
-  if (!authHeader || !authHeader.startsWith("Bearer ")) return null
-  return authHeader.slice("Bearer ".length).trim()
+function getAuthError(message, status = 401) {
+  return Response.json({ code: -1, msg: message }, { status })
 }
 
 export async function POST(request) {
-  if (!NANO_API_KEY) {
-    console.error("NANO_API_KEY is not configured")
-    return Response.json({ error: "图像生成服务未配置，请联系管理员" }, { status: 500 })
-  }
   if (!JWT_SECRET) {
-    console.error("JWT_SECRET is not configured")
-    return Response.json({ error: "认证服务未配置，请联系管理员" }, { status: 500 })
+    return getAuthError("服务器验证配置缺失", 500)
   }
 
-  const authHeader = request.headers.get("authorization")
-  const token = getBearerToken(authHeader)
-  if (!token) {
-    return Response.json({ error: "请先登录" }, { status: 401 })
-  }
+  const ip =
+    request.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ||
+    request.headers.get("x-real-ip") ||
+    "unknown"
 
-  let decoded
-  try {
-    decoded = jwt.verify(token, JWT_SECRET)
-  } catch {
-    return Response.json({ error: "登录状态已失效，请重新登录" }, { status: 401 })
-  }
-
-  if (decoded?.plan !== "pro") {
-    return Response.json({ error: "该功能仅限 Pro 用户使用" }, { status: 403 })
-  }
-
-  let body
-  try {
-    body = await request.json()
-  } catch {
-    return Response.json({ error: "请求格式错误" }, { status: 400 })
-  }
-
-  const { prompt, model, ratio, resolution, images } = body
-
-  if (!prompt || typeof prompt !== "string" || prompt.trim().length === 0) {
-    return Response.json({ error: "请输入生成描述" }, { status: 400 })
+  if (!checkRateLimit(ip)) {
+    return getAuthError("请求过于频繁，请稍后再试", 429)
   }
 
   try {
-    const submitRes = await fetch(`${NANO_BASE_URL}/v1/draw/nano-banana`, {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${NANO_API_KEY}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        model: model || DEFAULT_MODEL,
-        prompt: prompt.trim(),
-        aspectRatio: ratio || "1:1",
-        imageSize: mapResolution(resolution || 1024),
-        webHook: "-1",
-        urls: images || [],
-      }),
-    })
+    const body = await request.json()
+    const { token, email, password, type } = body ?? {}
 
-    const submitData = await submitRes.json()
-    if (!submitRes.ok || submitData.code !== 0 || !submitData?.data?.id) {
-      throw new Error(submitData?.msg || "提交任务失败")
+    // --- 核心修改：邮箱密码硬编码登录逻辑 ---
+    // 允许特定账号使用特定密码直接登录，并赋予 Pro 权限
+    if (type === "email" && email === "1065499853@qq.com" && password === "123456") {
+      const userData = {
+        id: "internal-admin-001",
+        email: "1065499853@qq.com",
+        name: "Admin User",
+        avatar: "",
+        plan: "pro", 
+      }
+      const appToken = jwt.sign(userData, JWT_SECRET, { expiresIn: "7d" })
+      return Response.json({ code: 0, data: { token: appToken, user: userData } })
+    }
+    // ------------------------------------
+
+    // 如果不是邮箱登录，则继续原有的 Google 验证逻辑
+    if (!token || typeof token !== "string") {
+      return getAuthError("缺少验证信息", 400)
     }
 
-    return Response.json({ taskId: submitData.data.id })
+    const userInfoRes = await fetch(
+      `https://www.googleapis.com/oauth2/v3/userinfo?access_token=${encodeURIComponent(token)}`,
+      { cache: "no-store" }
+    )
+    const payload = await userInfoRes.json()
+
+    if (!userInfoRes.ok || !payload?.sub || !payload?.email) {
+      return getAuthError("Google 验证失败")
+    }
+
+    // 邮箱白名单检查
+    if (ALLOWED_EMAILS && !ALLOWED_EMAILS.includes(payload.email.toLowerCase())) {
+      return getAuthError("该账号暂无访问权限", 403)
+    }
+
+    const userData = {
+      id: payload.sub,
+      email: payload.email,
+      name: payload.name || payload.email,
+      avatar: payload.picture || "",
+      plan: PRO_TEST_EMAILS.includes(payload.email.toLowerCase()) ? "pro" : "free",
+    }
+
+    const appToken = jwt.sign(userData, JWT_SECRET, { expiresIn: "7d" })
+    return Response.json({ code: 0, data: { token: appToken, user: userData } })
   } catch (error) {
-    console.error("Generate Submit Error:", error)
-    return Response.json({ error: error?.message || "提交失败，请重试" }, { status: 500 })
+    console.error("验证过程出错:", error)
+    return getAuthError("服务器验证失败")
   }
 }

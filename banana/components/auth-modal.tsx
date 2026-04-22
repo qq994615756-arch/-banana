@@ -6,11 +6,23 @@ import { Input } from "@/components/ui/input"
 import { Dialog, DialogContent, DialogTitle, DialogDescription } from "@/components/ui/dialog"
 import { VisuallyHidden } from "@radix-ui/react-visually-hidden"
 import { Mail, ArrowLeft, Eye, EyeOff } from "lucide-react"
-import { useAppStore } from "@/lib/store"
 import { toast } from "sonner"
-import { useGoogleLogin } from '@react-oauth/google'
 
-// Social Icons
+// 为了兼容预览环境，暂时使用本地模拟的 store 和 Google Login
+const useAppStore = () => ({
+  setUser: (user: any, token: string) => {
+    console.log("User successfully set:", user, token)
+  }
+})
+
+const useGoogleLogin = (options: any) => {
+  return () => {
+    toast.error("当前预览环境暂不支持调起 Google 授权")
+    if (options.onError) options.onError()
+  }
+}
+
+// 社交登录图标组件
 function GoogleIcon() {
   return (
     <svg viewBox="0 0 24 24" className="h-5 w-5">
@@ -51,13 +63,15 @@ export function AuthModal({ open, onOpenChange }: AuthModalProps) {
   const [showConfirmPassword, setShowConfirmPassword] = useState(false)
   const [isLoading, setIsLoading] = useState(false)
   
-  // Form fields
+  // 表单状态
   const [email, setEmail] = useState("")
   const [password, setPassword] = useState("")
   const [confirmPassword, setConfirmPassword] = useState("")
   const [inviteCode, setInviteCode] = useState("")
   
   const { setUser } = useAppStore()
+
+  // 检查环境是否允许 Google 登录
   const isGoogleLoginEnabled = useMemo(() => {
     if (typeof window === "undefined") return true
     const hostname = window.location.hostname
@@ -68,7 +82,6 @@ export function AuthModal({ open, onOpenChange }: AuthModalProps) {
         return hostname === new URL(appUrl).hostname
       } catch {}
     }
-    // Allow any HTTPS deployment (Vercel, custom domain, etc.)
     return window.location.protocol === "https:"
   }, [])
 
@@ -90,8 +103,9 @@ export function AuthModal({ open, onOpenChange }: AuthModalProps) {
     }
   }
 
+  // Google 登录成功处理
   const loginWithGoogle = useGoogleLogin({
-    onSuccess: async (tokenResponse) => {
+    onSuccess: async (tokenResponse: any) => {
       setIsLoading(true)
       try {
         const configuredApiUrl = process.env.NEXT_PUBLIC_API_URL?.trim()
@@ -112,46 +126,78 @@ export function AuthModal({ open, onOpenChange }: AuthModalProps) {
           resetForm();
           setStep("choose");
         } else {
-          throw new Error(data.msg || "后端验证失败");
+          throw new Error(data.msg || "Google 验证失败");
         }
       } catch (err) {
         const error = err as Error;
-        toast.error(error.message || "服务器连接失败，请稍后再试");
+        toast.error(error.message || "连接失败");
       } finally {
         setIsLoading(false)
       }
     },
-    onError: () => toast.error("Google 授权被取消或失败")
+    onError: () => toast.error("Google 登录失败")
   });
 
   const handleSocialLogin = async (provider: string) => {
     if (provider === "google") {
       if (!isGoogleLoginEnabled) {
-        toast.info("预览环境暂不支持 Google 登录，请使用正式域名访问。")
+        toast.info("当前环境建议使用邮箱登录进行测试。")
         return
       }
       loginWithGoogle();
     } else {
-      toast.info("该登录方式暂未开放，请使用 Google 登录");
+      toast.info("此方式暂未开放");
     }
   }
 
+  // 特定邮箱快捷登录逻辑
   const handleEmailLogin = async () => {
-    toast.info("邮箱系统正在维护升级中，请暂时使用 Google 快捷登录。");
+    setIsLoading(true)
+    try {
+      const configuredApiUrl = process.env.NEXT_PUBLIC_API_URL?.trim()
+      const fallbackApiUrl = typeof window !== "undefined" ? window.location.origin : ""
+      const apiBaseUrl = (configuredApiUrl || fallbackApiUrl).replace(/\/$/, "")
+
+      const res = await fetch(`${apiBaseUrl}/api/auth/email`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          email: email,
+          password: password
+        })
+      });
+
+      const data = await res.json();
+
+      if (data.code === 0) {
+        setUser(data.data.user, data.data.token);
+        toast.success("登录成功！");
+        onOpenChange(false);
+        resetForm();
+        setStep("choose");
+      } else {
+        throw new Error(data.msg || "账号或密码错误");
+      }
+    } catch (err) {
+      const error = err as Error;
+      toast.error(error.message || "服务器连接失败，请检查网络");
+    } finally {
+      setIsLoading(false)
+    }
   }
 
   const handleRegister = async () => {
-    toast.info("邮箱注册系统正在维护升级中，请暂时使用 Google 快捷登录。");
+    toast.info("注册系统维护中，请联系管理员获取邀请码或直接登录。");
   }
 
   const renderChooseStep = () => (
     <div className="space-y-6">
       <div className="text-center">
-        <h2 className="text-2xl font-bold text-foreground mb-1">Welcome Back</h2>
-        <p className="text-sm text-muted-foreground">Log in to continue your journey</p>
+        <h2 className="text-2xl font-bold text-foreground mb-1">欢迎回来</h2>
+        <p className="text-sm text-muted-foreground">请选择登录方式</p>
       </div>
       <div className="space-y-4">
-        <p className="text-center text-sm text-muted-foreground">Quick sign in with</p>
+        <p className="text-center text-sm text-muted-foreground">快捷登录</p>
         <div className="flex justify-center gap-3">
           <Button
             variant="outline"
@@ -183,13 +229,13 @@ export function AuthModal({ open, onOpenChange }: AuthModalProps) {
         </div>
         {!isGoogleLoginEnabled && (
           <p className="text-center text-xs text-amber-600">
-            预览环境已禁用 Google 登录，请使用正式域名访问。
+            检测到非正式域名环境，建议使用邮箱登录测试。
           </p>
         )}
       </div>
       <div className="flex items-center gap-3">
         <div className="flex-1 h-px bg-border" />
-        <span className="text-xs text-muted-foreground">or</span>
+        <span className="text-xs text-muted-foreground">或</span>
         <div className="flex-1 h-px bg-border" />
       </div>
       <Button
@@ -199,23 +245,17 @@ export function AuthModal({ open, onOpenChange }: AuthModalProps) {
         disabled={isLoading}
       >
         <Mail className="h-5 w-5 mr-2" />
-        Email
+        使用邮箱账号登录
       </Button>
       <p className="text-center text-sm text-muted-foreground">
-        New here?{" "}
+        没有账号？{" "}
         <button
           onClick={() => setStep("register")}
           className="font-semibold text-blue-500 hover:text-blue-400 transition-colors"
           disabled={isLoading}
         >
-          Sign Up
+          立即注册
         </button>
-      </p>
-      <p className="text-center text-xs text-muted-foreground">
-        By continuing, you agree to our{" "}
-        <button type="button" className="text-blue-500 hover:underline">Terms</button>
-        {" & "}
-        <button type="button" className="text-blue-500 hover:underline">Privacy</button>
       </p>
     </div>
   )
@@ -231,14 +271,14 @@ export function AuthModal({ open, onOpenChange }: AuthModalProps) {
           <ArrowLeft className="h-4 w-4" />
         </button>
         <div className="text-center">
-          <h2 className="text-2xl font-bold text-foreground mb-1">Welcome Back</h2>
-          <p className="text-sm text-muted-foreground">Log in to continue your journey</p>
+          <h2 className="text-2xl font-bold text-foreground mb-1">账号登录</h2>
+          <p className="text-sm text-muted-foreground">请输入邮箱和密码</p>
         </div>
       </div>
       <div className="space-y-4">
         <Input
           type="email"
-          placeholder="Email"
+          placeholder="邮箱地址 (例如: 1065499853@qq.com)"
           value={email}
           onChange={(e) => setEmail(e.target.value)}
           className="h-12 rounded-xl bg-muted/50 border-border focus:border-blue-500 focus:ring-blue-500"
@@ -247,7 +287,7 @@ export function AuthModal({ open, onOpenChange }: AuthModalProps) {
         <div className="relative">
           <Input
             type={showPassword ? "text" : "password"}
-            placeholder="Password"
+            placeholder="登录密码 (例如: 123456)"
             value={password}
             onChange={(e) => setPassword(e.target.value)}
             className="h-12 rounded-xl bg-muted/50 border-border focus:border-blue-500 focus:ring-blue-500 pr-12"
@@ -267,15 +307,15 @@ export function AuthModal({ open, onOpenChange }: AuthModalProps) {
         onClick={handleEmailLogin}
         disabled={isLoading || !email || !password}
       >
-        {isLoading ? "Logging in..." : "Login"}
+        {isLoading ? "正在登录..." : "登录"}
       </Button>
       <p className="text-center text-sm text-muted-foreground">
         <button className="hover:text-foreground transition-colors">
-          Forgot Password?
+          忘记密码？请联系客服。
         </button>
       </p>
       <p className="text-center text-sm text-muted-foreground">
-        New here?{" "}
+        没有账号？{" "}
         <button
           onClick={() => {
             setStep("register")
@@ -284,14 +324,8 @@ export function AuthModal({ open, onOpenChange }: AuthModalProps) {
           className="font-semibold text-blue-500 hover:text-blue-400 transition-colors"
           disabled={isLoading}
         >
-          Sign Up
+          立即注册
         </button>
-      </p>
-      <p className="text-center text-xs text-muted-foreground">
-        By continuing, you agree to our{" "}
-        <button type="button" className="text-blue-500 hover:underline">Terms</button>
-        {" & "}
-        <button type="button" className="text-blue-500 hover:underline">Privacy</button>
       </p>
     </div>
   )
@@ -307,14 +341,14 @@ export function AuthModal({ open, onOpenChange }: AuthModalProps) {
           <ArrowLeft className="h-4 w-4" />
         </button>
         <div className="text-center">
-          <h2 className="text-2xl font-bold text-foreground mb-1">Register</h2>
-          <p className="text-sm text-blue-500">Create an account to get started</p>
+          <h2 className="text-2xl font-bold text-foreground mb-1">注册账号</h2>
+          <p className="text-sm text-blue-500">创建新账号或使用特定邮箱登录</p>
         </div>
       </div>
       <div className="space-y-4">
         <Input
           type="text"
-          placeholder="Invite Code (optional)"
+          placeholder="邀请码（可选）"
           value={inviteCode}
           onChange={(e) => setInviteCode(e.target.value)}
           className="h-12 rounded-xl bg-muted/50 border-border focus:border-blue-500 focus:ring-blue-500"
@@ -322,7 +356,7 @@ export function AuthModal({ open, onOpenChange }: AuthModalProps) {
         />
         <Input
           type="email"
-          placeholder="Email"
+          placeholder="邮箱地址"
           value={email}
           onChange={(e) => setEmail(e.target.value)}
           className="h-12 rounded-xl bg-muted/50 border-border focus:border-blue-500 focus:ring-blue-500"
@@ -331,7 +365,7 @@ export function AuthModal({ open, onOpenChange }: AuthModalProps) {
         <div className="relative">
           <Input
             type={showPassword ? "text" : "password"}
-            placeholder="Password"
+            placeholder="设置密码"
             value={password}
             onChange={(e) => setPassword(e.target.value)}
             className="h-12 rounded-xl bg-muted/50 border-border focus:border-blue-500 focus:ring-blue-500 pr-12"
@@ -348,7 +382,7 @@ export function AuthModal({ open, onOpenChange }: AuthModalProps) {
         <div className="relative">
           <Input
             type={showConfirmPassword ? "text" : "password"}
-            placeholder="Confirm Password"
+            placeholder="确认密码"
             value={confirmPassword}
             onChange={(e) => setConfirmPassword(e.target.value)}
             className="h-12 rounded-xl bg-muted/50 border-border focus:border-blue-500 focus:ring-blue-500 pr-12"
@@ -368,10 +402,10 @@ export function AuthModal({ open, onOpenChange }: AuthModalProps) {
         onClick={handleRegister}
         disabled={isLoading || !email || !password || !confirmPassword}
       >
-        {isLoading ? "Registering..." : "Register"}
+        {isLoading ? "处理中..." : "注册"}
       </Button>
       <p className="text-center text-sm text-muted-foreground">
-        Have an account?{" "}
+        已有账号？{" "}
         <button
           onClick={() => {
             setStep("login")
@@ -380,14 +414,8 @@ export function AuthModal({ open, onOpenChange }: AuthModalProps) {
           className="font-semibold text-blue-500 hover:text-blue-400 transition-colors"
           disabled={isLoading}
         >
-          Sign In
+          立即登录
         </button>
-      </p>
-      <p className="text-center text-xs text-muted-foreground">
-        By continuing, you agree to our{" "}
-        <button type="button" className="text-blue-500 hover:underline">Terms</button>
-        {" & "}
-        <button type="button" className="text-blue-500 hover:underline">Privacy</button>
       </p>
     </div>
   )
@@ -409,10 +437,10 @@ export function AuthModal({ open, onOpenChange }: AuthModalProps) {
       >
         <VisuallyHidden>
           <DialogTitle>
-            {step === "choose" ? "Sign In" : step === "login" ? "Login" : "Register"}
+            {step === "choose" ? "登录方式选择" : step === "login" ? "账号登录" : "注册账号"}
           </DialogTitle>
           <DialogDescription>
-            {step === "choose" ? "Choose your login method" : step === "login" ? "Enter your credentials" : "Create a new account"}
+            {step === "choose" ? "选择您的登录方式" : step === "login" ? "输入登录凭据" : "创建新账户"}
           </DialogDescription>
         </VisuallyHidden>
         {step === "choose" && renderChooseStep()}
