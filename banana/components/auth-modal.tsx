@@ -7,20 +7,8 @@ import { Dialog, DialogContent, DialogTitle, DialogDescription } from "@/compone
 import { VisuallyHidden } from "@radix-ui/react-visually-hidden"
 import { Mail, ArrowLeft, Eye, EyeOff } from "lucide-react"
 import { toast } from "sonner"
-
-// 为了兼容预览环境，暂时使用本地模拟的 store 和 Google Login
-const useAppStore = () => ({
-  setUser: (user: any, token: string) => {
-    console.log("User successfully set:", user, token)
-  }
-})
-
-const useGoogleLogin = (options: any) => {
-  return () => {
-    toast.error("当前预览环境暂不支持调起 Google 授权")
-    if (options.onError) options.onError()
-  }
-}
+import { useAppStore } from "@/lib/store"
+import { useGoogleLogin } from "@react-oauth/google"
 
 // 社交登录图标组件
 function GoogleIcon() {
@@ -74,15 +62,7 @@ export function AuthModal({ open, onOpenChange }: AuthModalProps) {
   // 检查环境是否允许 Google 登录
   const isGoogleLoginEnabled = useMemo(() => {
     if (typeof window === "undefined") return true
-    const hostname = window.location.hostname
-    if (hostname === "localhost" || hostname === "127.0.0.1") return true
-    const appUrl = process.env.NEXT_PUBLIC_APP_URL
-    if (appUrl) {
-      try {
-        return hostname === new URL(appUrl).hostname
-      } catch {}
-    }
-    return window.location.protocol === "https:"
+    return true
   }, [])
 
   const resetForm = () => {
