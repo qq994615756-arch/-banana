@@ -61,8 +61,7 @@ export function AuthModal({ open, onOpenChange }: AuthModalProps) {
 
   // 检查环境是否允许 Google 登录
   const isGoogleLoginEnabled = useMemo(() => {
-    if (typeof window === "undefined") return true
-    return true
+    return !!process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID
   }, [])
 
   const resetForm = () => {

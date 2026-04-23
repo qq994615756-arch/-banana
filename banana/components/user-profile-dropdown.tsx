@@ -25,7 +25,7 @@ interface UserProfileDropdownProps {
 }
 
 export function UserProfileDropdown({ onOpenSettings }: UserProfileDropdownProps) {
-  const { user, setUser } = useAppStore()
+  const { user, setUser, clearUserData } = useAppStore()
   const [isOpen, setIsOpen] = useState(false)
 
   const handleMenuClick = (tab?: string) => {
@@ -36,6 +36,7 @@ export function UserProfileDropdown({ onOpenSettings }: UserProfileDropdownProps
   const handleLogout = () => {
     setIsOpen(false)
     setUser(null)
+    clearUserData()
     toast.success("Logged out successfully")
   }
 

@@ -37,7 +37,7 @@ export default function RootLayout({
       <body
         className={`${geistSans.variable} ${geistMono.variable} font-sans antialiased`}
       >
-        <GoogleOAuthProvider clientId={process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID || ""}>
+        <GoogleOAuthProvider clientId={process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID ?? "placeholder"}>
           <ThemeProvider
             attribute="class"
             defaultTheme="light"
@@ -45,9 +45,9 @@ export default function RootLayout({
             disableTransitionOnChange
           >
             {children}
-            <Toaster 
-              position="top-center" 
-              richColors 
+            <Toaster
+              position="top-center"
+              richColors
               closeButton
               toastOptions={{
                 duration: 3000,

@@ -29,6 +29,7 @@ interface AppState {
   user: User | null
   token: string | null
   setUser: (user: User | null, token?: string | null) => void
+  clearUserData: () => void
   settings: Settings
   updateSettings: (updates: Partial<Settings>) => void
   sidebarOpen: boolean
@@ -68,7 +69,14 @@ export const useAppStore = create<AppState>()(
       setSelectedModel: (model) => set({ selectedModel: model }),
       user: null,
       token: null,
-      setUser: (user, token = null) => set({ user, token: token !== undefined ? token : get().token }),
+      clearUserData: () => set({ projects: [], currentProject: null, projectMessages: {} }),
+      setUser: (user, token = null) => {
+        const currentId = get().user?.id
+        if (user === null || user.id !== currentId) {
+          get().clearUserData()
+        }
+        set({ user, token: token !== undefined ? token : get().token })
+      },
       settings: { theme: "light", language: "zh-CN", defaultModel: "nano-banana-pro", autoSave: true, gridSnap: true },
       updateSettings: (updates) => set((state) => ({ settings: { ...state.settings, ...updates } })),
       sidebarOpen: true,
