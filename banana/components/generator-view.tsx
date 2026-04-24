@@ -4,7 +4,6 @@
 import { useState, useRef, useEffect, useCallback } from "react"
 import {
   Send,
-  Image as ImageIcon,
   Sparkles,
   ChevronDown,
   Paperclip,
@@ -13,7 +12,6 @@ import {
   Brain,
   Wand2,
   RatioIcon,
-  Hash,
   Download,
   Loader2,
   Copy,
@@ -159,6 +157,7 @@ interface InputPanelProps {
   onSubmit: () => void
   onFileClick: () => void
   onKeyDown: (e: React.KeyboardEvent) => void
+  isCompact?: boolean
 }
 
 function InputPanel({
@@ -179,24 +178,34 @@ function InputPanel({
   onSubmit,
   onFileClick,
   onKeyDown,
+  isCompact,
 }: InputPanelProps) {
   return (
-    <div className="bg-white/80 dark:bg-slate-900/80 backdrop-blur-xl rounded-2xl border border-slate-200/50 dark:border-slate-700/50 shadow-xl overflow-hidden">
+    <div className={cn("relative rounded-[14px] overflow-hidden bg-white/37 dark:bg-slate-800/60 backdrop-blur-xl", isCompact && "rounded-[10px]")}>
+      {/* Badge */}
+      {!isCompact && (
+        <div className="px-6 pt-5 pb-2">
+          <span className="inline-block bg-[#cce5ff] dark:bg-blue-500/20 text-[#0080e9] dark:text-blue-400 text-[13px] rounded-[13.5px] px-4 py-1.5">
+            图片生成
+          </span>
+        </div>
+      )}
+
       {/* Attachments Preview */}
       {attachmentPreviews.length > 0 && (
-        <div className="px-5 pt-4 flex flex-wrap gap-3 border-b border-slate-200/30 dark:border-slate-700/30 pb-4">
+        <div className="px-6 pt-2 flex flex-wrap gap-3 pb-2">
           {attachmentPreviews.map((preview, index) => (
             <div key={index} className="relative group">
               <img
                 src={preview}
                 alt={`Attachment ${index + 1}`}
-                className="h-20 w-20 object-cover rounded-xl border border-slate-200 dark:border-slate-700 shadow-sm"
+                className="h-16 w-16 object-cover rounded-xl border border-slate-200 dark:border-slate-700 shadow-sm"
               />
               <button
                 onClick={() => removeAttachment(index)}
-                className="absolute -top-3 -right-3 bg-destructive text-destructive-foreground rounded-full p-1 shadow-md opacity-0 group-hover:opacity-100 transition-opacity"
+                className="absolute -top-2 -right-2 bg-destructive text-destructive-foreground rounded-full p-0.5 shadow-md opacity-0 group-hover:opacity-100 transition-opacity"
               >
-                <X className="h-4 w-4" />
+                <X className="h-3 w-3" />
               </button>
             </div>
           ))}
@@ -204,10 +213,10 @@ function InputPanel({
       )}
 
       {/* Input Area */}
-      <div className="p-5">
+      <div className={cn("px-6 pb-1", isCompact ? "pt-2" : "pt-2")}>
         <Textarea
-          placeholder="Describe the image you want to create, e.g.: A sunset over an ancient city, realistic photography style..."
-          className="min-h-[80px] max-h-[200px] resize-none border-0 bg-transparent focus-visible:ring-0 text-base placeholder:text-muted-foreground/60 font-medium"
+          placeholder="描述你想要创建的图片，例如：一座古老城市的日落，写实摄影风格..."
+          className={cn("resize-none border-0 bg-transparent shadow-none focus-visible:ring-0 focus-visible:shadow-none text-sm placeholder:text-muted-foreground/50 font-medium p-0", isCompact ? "min-h-[40px] max-h-[100px]" : "min-h-[60px] max-h-[150px]")}
           value={input}
           onChange={(e) => setInput(e.target.value)}
           onKeyDown={onKeyDown}
@@ -215,178 +224,151 @@ function InputPanel({
         />
       </div>
 
-      {/* Bottom Bar */}
-      <div className="px-5 pb-5 flex items-center justify-between border-t border-slate-200/30 dark:border-slate-700/30 pt-4">
-        <div className="flex items-center gap-2">
-          {/* Model Selector */}
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button
-                variant="ghost"
-                size="sm"
-                className="gap-2 text-muted-foreground hover:text-foreground text-xs px-3 h-9 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg"
-                disabled={isLoading}
+      {/* Bottom Controls Bar */}
+      <div className={cn("px-6 pt-3 flex items-center gap-3", isCompact ? "pb-3" : "pb-5")}>
+        {/* Model Selector */}
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <button
+              className="flex items-center gap-2 bg-white dark:bg-slate-700 border border-[#aaa] dark:border-slate-600 rounded-lg px-4 h-[34px] text-[12px] text-[#666] dark:text-slate-300 hover:border-blue-400 dark:hover:border-blue-500 transition-colors disabled:opacity-50"
+              disabled={isLoading}
+            >
+              {selectedModel && modelIcons[selectedModel.icon]}
+              <span className="font-medium whitespace-nowrap">{selectedModel?.name || "Select Model"}</span>
+              <ChevronDown className="h-3 w-3" />
+            </button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="start" className="w-72">
+            {models.map((model) => (
+              <DropdownMenuItem
+                key={model.id}
+                onClick={() => setSelectedModel(model)}
+                className={cn(
+                  "flex items-center gap-3 py-3 h-14",
+                  selectedModel?.id === model.id && "bg-muted border-l-2 border-foreground"
+                )}
               >
-                {selectedModel && modelIcons[selectedModel.icon]}
-                <span className="hidden sm:inline">{selectedModel?.name || "Select Model"}</span>
-                <ChevronDown className="h-3 w-3" />
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="start" className="w-64">
-              {models.map((model) => (
-                <DropdownMenuItem
-                  key={model.id}
-                  onClick={() => setSelectedModel(model)}
-                  className={cn(
-                    "flex items-start gap-3 py-3",
-                    selectedModel?.id === model.id && "bg-muted border-l-2 border-foreground"
-                  )}
-                >
-                  <div className="w-9 h-9 rounded-lg bg-muted flex items-center justify-center shrink-0 text-foreground">
-                    {modelIcons[model.icon]}
+                <div className="w-8 h-8 rounded-lg bg-muted flex items-center justify-center shrink-0 text-foreground">
+                  {modelIcons[model.icon]}
+                </div>
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-2">
+                    <span className="font-medium text-sm whitespace-nowrap">{model.name}</span>
+                    <span className="text-xs text-muted-foreground bg-muted/50 px-1.5 py-0.5 rounded shrink-0">
+                      {model.provider}
+                    </span>
                   </div>
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-2">
-                      <span className="font-medium text-sm">{model.name}</span>
-                      <span className="text-xs text-muted-foreground bg-muted/50 px-2 py-0.5 rounded">
-                        {model.provider}
-                      </span>
-                    </div>
-                    <p className="text-xs text-muted-foreground truncate">{model.description}</p>
-                  </div>
-                </DropdownMenuItem>
-              ))}
-            </DropdownMenuContent>
-          </DropdownMenu>
+                  <p className="text-xs text-muted-foreground truncate">{model.description}</p>
+                </div>
+              </DropdownMenuItem>
+            ))}
+          </DropdownMenuContent>
+        </DropdownMenu>
 
-          {/* Attachment Button */}
-          <Button
-            variant="ghost"
-            size="icon"
-            className="text-muted-foreground hover:text-foreground h-9 w-9 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg"
-            onClick={onFileClick}
-            disabled={isLoading}
-          >
-            <Paperclip className="h-4 w-4" />
-          </Button>
-
-          {/* Divider */}
-          <div className="h-5 w-px bg-slate-200 dark:bg-slate-700 mx-2" />
-
-          {/* Quick Controls */}
-          <div className="flex items-center gap-1">
-            {/* Aspect Ratio */}
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  className="gap-1 text-muted-foreground hover:text-foreground text-xs px-2 h-9 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg"
-                  disabled={isLoading}
-                >
-                  <RatioIcon className="h-4 w-4" />
-                  <span className="hidden sm:inline">{selectedRatio}</span>
-                  <ChevronDown className="h-3 w-3" />
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="start" className="w-32 max-h-64 overflow-y-auto">
+        {/* Combined Size & Count Button */}
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <button
+              className="flex items-center gap-2 bg-white dark:bg-slate-700 border border-[#aaa] dark:border-slate-600 rounded-lg px-4 h-[34px] text-[12px] text-[#666] dark:text-slate-300 hover:border-blue-400 dark:hover:border-blue-500 transition-colors disabled:opacity-50"
+              disabled={isLoading}
+            >
+              <RatioIcon className="h-3 w-3" />
+              <span className="font-medium">{selectedRatio}</span>
+              <div className="w-px h-3 bg-[#aaa] dark:bg-slate-600" />
+              <span className="font-medium">{selectedQuantity}张</span>
+              <ChevronDown className="h-3 w-3" />
+            </button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="start" className="w-56 p-3 space-y-3">
+            {/* Aspect Ratio Section */}
+            <div>
+              <p className="text-xs font-medium text-muted-foreground mb-2">比例</p>
+              <div className="grid grid-cols-4 gap-1">
                 {aspectRatios.map((ratio) => (
-                  <DropdownMenuItem
+                  <button
                     key={ratio.value}
                     onClick={() => setSelectedRatio(ratio.value)}
                     className={cn(
-                      "justify-center text-sm",
-                      selectedRatio === ratio.value && "bg-muted border-l-2 border-foreground"
+                      "text-[10px] py-1.5 rounded-md transition-colors",
+                      selectedRatio === ratio.value
+                        ? "bg-blue-500 text-white"
+                        : "bg-muted/50 text-muted-foreground hover:bg-muted"
                     )}
                   >
                     {ratio.label}
-                  </DropdownMenuItem>
+                  </button>
                 ))}
-              </DropdownMenuContent>
-            </DropdownMenu>
+              </div>
+            </div>
 
-            {/* Resolution */}
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  className="gap-1 text-muted-foreground hover:text-foreground text-xs px-2 h-9 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg"
-                  disabled={isLoading}
-                >
-                  <span className="hidden sm:inline font-medium">
-                    {resolutions.find((r) => r.value === selectedResolution)?.label}
-                  </span>
-                  <ChevronDown className="h-3 w-3" />
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="start" className="w-28">
+            {/* Resolution Section */}
+            <div>
+              <p className="text-xs font-medium text-muted-foreground mb-2">分辨率</p>
+              <div className="grid grid-cols-4 gap-1">
                 {resolutions.map((res) => (
-                  <DropdownMenuItem
+                  <button
                     key={res.value}
                     onClick={() => setSelectedResolution(res.value)}
                     className={cn(
-                      "justify-center text-sm",
-                      selectedResolution === res.value && "bg-muted border-l-2 border-foreground"
+                      "text-[10px] py-1.5 rounded-md transition-colors",
+                      selectedResolution === res.value
+                        ? "bg-blue-500 text-white"
+                        : "bg-muted/50 text-muted-foreground hover:bg-muted"
                     )}
                   >
                     {res.label}
-                  </DropdownMenuItem>
+                  </button>
                 ))}
-              </DropdownMenuContent>
-            </DropdownMenu>
+              </div>
+            </div>
 
-            {/* Quantity */}
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  className="gap-1 text-muted-foreground hover:text-foreground text-xs px-2 h-9 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg"
-                  disabled={isLoading}
-                >
-                  <Hash className="h-3.5 w-3.5" />
-                  <span className="hidden sm:inline">{selectedQuantity}</span>
-                  <ChevronDown className="h-3 w-3" />
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="start" className="w-20">
+            {/* Quantity Section */}
+            <div>
+              <p className="text-xs font-medium text-muted-foreground mb-2">张数</p>
+              <div className="grid grid-cols-4 gap-1">
                 {quantities.map((qty) => (
-                  <DropdownMenuItem
+                  <button
                     key={qty}
                     onClick={() => setSelectedQuantity(qty)}
                     className={cn(
-                      "justify-center text-sm",
-                      selectedQuantity === qty && "bg-muted border-l-2 border-foreground"
+                      "text-[10px] py-1.5 rounded-md transition-colors",
+                      selectedQuantity === qty
+                        ? "bg-blue-500 text-white"
+                        : "bg-muted/50 text-muted-foreground hover:bg-muted"
                     )}
                   >
-                    {qty}
-                  </DropdownMenuItem>
+                    {qty}张
+                  </button>
                 ))}
-              </DropdownMenuContent>
-            </DropdownMenu>
-          </div>
-        </div>
+              </div>
+            </div>
+          </DropdownMenuContent>
+        </DropdownMenu>
+
+        {/* Attachment Button */}
+        <button
+          onClick={onFileClick}
+          disabled={isLoading}
+          className="flex items-center justify-center h-[34px] w-[34px] rounded-lg border border-[#aaa] dark:border-slate-600 bg-white dark:bg-slate-700 text-[#666] dark:text-slate-300 hover:border-blue-400 dark:hover:border-blue-500 transition-colors disabled:opacity-50"
+        >
+          <Paperclip className="h-3 w-3" />
+        </button>
+
+        {/* Spacer */}
+        <div className="flex-1" />
 
         {/* Submit Button */}
-        <Button
-          size="sm"
-          className="gap-2 h-9 rounded-lg bg-foreground hover:bg-foreground/90 text-background shadow-md disabled:opacity-50"
+        <button
           onClick={onSubmit}
-          disabled={isLoading || (!input.trim())}
+          disabled={isLoading || !input.trim()}
+          className="relative flex items-center justify-center h-[43px] w-[74px] rounded-lg bg-black hover:bg-black/80 text-white shadow-md transition-colors disabled:opacity-50 disabled:hover:bg-black"
         >
           {isLoading ? (
-            <>
-              <Loader2 className="h-4 w-4 animate-spin" />
-              <span className="hidden sm:inline">Generating...</span>
-            </>
+            <Loader2 className="h-5 w-5 animate-spin" />
           ) : (
-            <>
-              <Send className="h-4 w-4" />
-              <span className="hidden sm:inline">Generate</span>
-            </>
+            <Send className="h-5 w-5" />
           )}
-        </Button>
+        </button>
       </div>
     </div>
   )
@@ -582,18 +564,10 @@ export function GeneratorView() {
         <div className="flex-1 flex items-center justify-center bg-background p-6 lg:p-12">
           <div className="w-full max-w-2xl">
             {/* Hero Section */}
-            <div className="text-center space-y-6 mb-10">
-              <div className="inline-flex items-center justify-center w-20 h-20 rounded-3xl bg-muted/60 border border-border/50">
-                <ImageIcon className="h-10 w-10 text-foreground/80" />
-              </div>
-              <div>
-                <h1 className="text-5xl lg:text-6xl font-bold text-foreground mb-4">
-                  AI Image Generation
-                </h1>
-                <p className="text-lg text-muted-foreground max-w-lg mx-auto leading-relaxed">
-                  Describe your creative vision with words, and AI will generate stunning images for you. Unlimited possibilities at your fingertips.
-                </p>
-              </div>
+            <div className="text-center space-y-4 mb-10">
+              <h1 className="text-5xl lg:text-6xl font-bold text-foreground">
+                图片创作
+              </h1>
             </div>
             <InputPanel {...inputPanelProps} />
             <input
@@ -763,9 +737,9 @@ export function GeneratorView() {
         </div>
 
         {/* Bottom Input */}
-        <div className="border-t border-slate-200/30 dark:border-slate-700/30 bg-background p-6 shrink-0">
+        <div className="border-t border-slate-200/30 dark:border-slate-700/30 bg-background p-4 shrink-0">
           <div className="max-w-2xl mx-auto">
-            <InputPanel {...inputPanelProps} />
+            <InputPanel {...inputPanelProps} isCompact />
           </div>
         </div>
 

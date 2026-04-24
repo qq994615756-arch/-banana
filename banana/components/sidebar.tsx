@@ -272,7 +272,7 @@ export function Sidebar() {
   }
 
   return (
-    <div className="w-64 h-full bg-gradient-to-b from-sidebar to-sidebar/95 border-r border-sidebar-border/50 flex flex-col backdrop-blur-sm">
+    <div className="w-[264px] h-full bg-gradient-to-b from-sidebar to-sidebar/95 border-r border-sidebar-border/50 flex flex-col backdrop-blur-sm">
       {/* Header - Refined */}
       <div className="p-5 border-b border-sidebar-border/30">
         <div className="flex items-center justify-between mb-4">

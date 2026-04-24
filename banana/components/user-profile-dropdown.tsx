@@ -50,11 +50,11 @@ export function UserProfileDropdown({ onOpenSettings }: UserProfileDropdownProps
           className="flex items-center gap-1.5 h-8 py-1.5 px-2 rounded-full border border-border/50 hover:bg-muted/50 transition-colors"
         >
           {/* Avatar */}
-          <div className="w-6 h-6 rounded-full bg-pink-400 flex items-center justify-center text-white text-xs font-medium">
+          <div className="w-6 h-6 rounded-full bg-pink-400 flex items-center justify-center text-white text-xs font-medium shrink-0">
             {firstLetter}
           </div>
           {/* Username */}
-          <span className="text-xs font-medium text-foreground">{user?.name}</span>
+          <span className="text-xs font-medium text-foreground max-w-[44px] truncate">{user?.name}</span>
           {/* Plan Badge */}
           <span className="text-[10px] px-1.5 py-0.5 rounded bg-muted text-muted-foreground font-light tracking-wide">
             {user?.plan === "free" ? "FREE" : user?.plan === "pro" ? "PRO" : "ENT"}
