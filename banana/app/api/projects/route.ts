@@ -1,5 +1,3 @@
-import { NextResponse } from "next/server"
-
 /**
  * GET /api/projects
  *
@@ -9,7 +7,7 @@ import { NextResponse } from "next/server"
  * with a database query (e.g., Prisma, Supabase, or an external API call).
  * Example:
  *   const projects = await db.project.findMany({ orderBy: { updatedAt: "desc" } })
- *   return NextResponse.json({ data: projects })
+ *   return Response.json({ data: projects })
  *
  * Expected shape per project:
  *   { id: string, name: string, thumbnail: string, updatedAt: string (ISO 8601) }
@@ -67,8 +65,5 @@ const mockData = [
 ]
 
 export async function GET() {
-  // Simulate a small network delay for realistic loading state
-  await new Promise((r) => setTimeout(r, 300))
-
-  return NextResponse.json({ data: mockData })
+  return Response.json({ data: mockData })
 }
