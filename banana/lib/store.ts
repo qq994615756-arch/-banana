@@ -40,6 +40,8 @@ interface AppState {
   setSettingsOpen: (open: boolean) => void
   settingsTab: string
   setSettingsTab: (tab: string) => void
+  libraryOpen: boolean
+  setLibraryOpen: (open: boolean) => void
 }
 
 const defaultModels: AIModel[] = [
@@ -87,6 +89,8 @@ export const useAppStore = create<AppState>()(
       setSettingsOpen: (open) => set({ settingsOpen: open }),
       settingsTab: "general",
       setSettingsTab: (tab) => set({ settingsTab: tab }),
+      libraryOpen: false,
+      setLibraryOpen: (open) => set({ libraryOpen: open, currentProject: open ? null : get().currentProject }),
     }),
     { name: "banana-storage" }
   )

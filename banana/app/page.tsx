@@ -5,10 +5,11 @@ import { GeneratorView } from "@/components/generator-view"
 import { WelcomeScreen } from "@/components/welcome-screen"
 import { SettingsPage } from "@/components/settings-page"
 import { AuthModal } from "@/components/auth-modal"
+import { ProjectLibrary } from "@/components/project-library"
 import { useAppStore } from "@/lib/store"
 
 export default function Home() {
-  const { currentProject, user, settingsOpen, setSettingsOpen, settingsTab, authDialogOpen, setAuthDialogOpen } = useAppStore()
+  const { currentProject, user, settingsOpen, setSettingsOpen, settingsTab, authDialogOpen, setAuthDialogOpen, libraryOpen } = useAppStore()
 
   // If settings page is open, show full screen settings
   if (settingsOpen) {
@@ -32,7 +33,7 @@ export default function Home() {
       
       <Sidebar />
       <div className="flex-1 relative flex flex-col bg-background">
-        {currentProject ? <GeneratorView /> : <WelcomeScreen />}
+        {libraryOpen ? <ProjectLibrary /> : currentProject ? <GeneratorView /> : <WelcomeScreen />}
       </div>
     </main>
   )

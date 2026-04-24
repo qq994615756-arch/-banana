@@ -15,6 +15,7 @@ import {
   Moon,
   Sun,
   Layers,
+  Library,
 } from "lucide-react"
 import { useTheme } from "next-themes"
 import { Button } from "@/components/ui/button"
@@ -198,6 +199,8 @@ export function Sidebar() {
     setSettingsTab,
     addProject,
     user,
+    libraryOpen,
+    setLibraryOpen,
   } = useAppStore()
 
   const handleNewProject = () => {
@@ -211,6 +214,7 @@ export function Sidebar() {
     }
     addProject(newProject)
     setCurrentProject(newProject)
+    setLibraryOpen(false)
   }
 
   const [searchQuery, setSearchQuery] = useState("")
@@ -303,8 +307,21 @@ export function Sidebar() {
         </Button>
       </div>
 
-      {/* Search - Enhanced */}
-      <div className="p-4 border-b border-sidebar-border/30">
+      {/* Project Library + Search */}
+      <div className="px-4 pt-3 pb-2 space-y-2">
+        <Button
+          variant="ghost"
+          className={cn(
+            "w-full justify-start gap-2 h-9 rounded-xl transition-colors text-sm",
+            libraryOpen
+              ? "bg-foreground text-background hover:bg-foreground/90"
+              : "text-foreground hover:bg-muted/50"
+          )}
+          onClick={() => setLibraryOpen(!libraryOpen)}
+        >
+          <Library className="h-4 w-4" />
+          项目库
+        </Button>
         <div className="relative">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
           <Input
@@ -317,7 +334,7 @@ export function Sidebar() {
       </div>
 
       {/* Projects List - Modern */}
-      <ScrollArea className="flex-1 px-3 py-3 [&_[data-slot=scroll-area-scrollbar]]:hidden">
+      <ScrollArea className="flex-1 px-3 pt-1 pb-3 [&_[data-slot=scroll-area-scrollbar]]:hidden">
         <div className="space-y-2">
           <div className="flex items-center gap-2 px-3 py-2.5 text-xs font-medium text-muted-foreground uppercase tracking-wider">
             <div className="p-1.5 rounded-lg bg-muted/50">
@@ -334,7 +351,7 @@ export function Sidebar() {
                 <ProjectItem
                   project={project}
                   isActive={currentProject?.id === project.id}
-                  onClick={() => setCurrentProject(project)}
+                  onClick={() => { setCurrentProject(project); setLibraryOpen(false) }}
                 />
               </div>
             ))
