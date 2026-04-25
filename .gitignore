@@ -1,4 +1,4 @@
 banana/node_modules/
 banana/.next/
-banana/.env/
+banana-repo/banana/.env/
 banana/.vercel/
