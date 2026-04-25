@@ -47,7 +47,8 @@ export function WelcomeScreen() {
             </div>
           </div>
           <h1 className="text-5xl lg:text-6xl font-bold bg-gradient-to-r from-foreground via-foreground to-foreground/70 bg-clip-text text-transparent mb-4">
-            FlowAI
+            NanoCanvas AI
+
           </h1>
           <p className="text-xl text-muted-foreground max-w-xl mx-auto leading-relaxed">
             智能创意工作台。让 AI 助力你的想象力，从灵感到成品只需一步

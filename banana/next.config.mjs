@@ -27,7 +27,7 @@ const nextConfig = {
               "style-src 'self' 'unsafe-inline'",
               "img-src 'self' data: blob: https:",
               "font-src 'self'",
-              "connect-src 'self' https://accounts.google.com https://www.googleapis.com https://grsai.dakka.com.cn",
+              "connect-src 'self' ws://47.111.160.17:8000 http://47.111.160.17:8000 https://accounts.google.com https://www.googleapis.com https://grsai.dakka.com.cn",
               "frame-src https://accounts.google.com",
             ].join("; "),
           },

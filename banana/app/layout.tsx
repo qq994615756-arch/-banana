@@ -17,7 +17,7 @@ const geistMono = Geist_Mono({
 })
 
 export const metadata: Metadata = {
-  title: "FlowAI - 智能画布工作台",
+  title: "NanoCanvas - 智能画布工作台",
   description: "基于AI的智能画布工作台，支持多模型对话、图片上传、项目管理等功能",
 }
 

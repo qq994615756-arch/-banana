@@ -285,7 +285,7 @@ export function Sidebar() {
               <Layers className="w-5 h-5 text-background" />
             </div>
             <div>
-              <span className="font-bold text-lg text-foreground">Dynastream</span>
+              <span className="font-bold text-lg text-foreground">NanoCanvas</span>
               <p className="text-xs text-muted-foreground">AI Creative Studio</p>
             </div>
           </div>
