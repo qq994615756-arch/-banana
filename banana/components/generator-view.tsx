@@ -456,41 +456,46 @@ export function GeneratorView() {
     }
 
     try {
-      const submitRes = await fetch(`${apiBaseUrl}/api/generate`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
-        body: JSON.stringify({
-          prompt: userMessage.content,
-          model: selectedModel?.id,
-          ratio: selectedRatio,
-          resolution: selectedResolution,
-          images: userMessage.images,
-        }),
-      })
+      // 发送 selectedQuantity 次独立请求，收集所有 taskId
+      const taskIds: string[] = []
+      for (let i = 0; i < selectedQuantity; i++) {
+        const submitRes = await fetch(`${apiBaseUrl}/api/generate`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+          body: JSON.stringify({
+            prompt: userMessage.content,
+            model: selectedModel?.id,
+            ratio: selectedRatio,
+            resolution: selectedResolution,
+            images: userMessage.images,
+          }),
+        })
+        const submitData = await submitRes.json()
+        if (!submitRes.ok) throw new Error(submitData.error || "提交失败")
+        if (!submitData.taskId) throw new Error("未获取到任务 ID")
+        taskIds.push(submitData.taskId)
+      }
 
-      const submitData = await submitRes.json()
-      if (!submitRes.ok) throw new Error(submitData.error || "提交失败")
-      const { taskId } = submitData
-      if (!taskId) throw new Error("未获取到任务 ID")
-
-      // Poll every 3s until succeeded or failed (max 2 minutes)
+      // 轮询所有 taskId（逗号拼接）
+      const allTaskIds = taskIds.join(",")
       const deadline = Date.now() + 120_000
       while (true) {
         await new Promise((r) => setTimeout(r, 3000))
         if (Date.now() > deadline) throw new Error("生成超时，请重试")
 
-        const statusRes = await fetch(`${apiBaseUrl}/api/generate/status?taskId=${encodeURIComponent(taskId)}`, {
+        const statusRes = await fetch(`${apiBaseUrl}/api/generate/status?taskId=${encodeURIComponent(allTaskIds)}`, {
           headers: { Authorization: `Bearer ${token}` },
         })
         const statusData = await statusRes.json()
 
         if (statusData.status === "succeeded") {
+          const count = statusData.images?.length || selectedQuantity
           updateLastMessage({
-            content: `Generated 1 image\nRatio: ${selectedRatio} | Resolution: ${resolutions.find((r) => r.value === selectedResolution)?.label}`,
+            content: `Generated ${count} image${count > 1 ? "s" : ""}\nRatio: ${selectedRatio} | Resolution: ${resolutions.find((r) => r.value === selectedResolution)?.label}`,
             images: statusData.images,
             isGenerating: false,
           })
-          toast.success("Successfully generated 1 image!")
+          toast.success(`Successfully generated ${count} image${count > 1 ? "s" : ""}!`)
           break
         } else if (statusData.status === "failed") {
           throw new Error(statusData.error || "生成失败")

@@ -29,51 +29,65 @@ export async function GET(request) {
   }
 
   const { searchParams } = new URL(request.url)
-  const taskId = searchParams.get("taskId")
-  if (!taskId) {
+  const taskIdParam = searchParams.get("taskId")
+  if (!taskIdParam) {
     return Response.json({ error: "缺少 taskId" }, { status: 400 })
   }
 
+  // 支持逗号分隔的多个 taskId
+  const taskIds = taskIdParam.split(",").map((id) => id.trim()).filter(Boolean)
+
   try {
-    const resultRes = await fetch(`${NANO_BASE_URL}/v1/draw/result`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${NANO_API_KEY}`,
-      },
-      body: JSON.stringify({ id: taskId }),
-    })
-    const resultData = await resultRes.json()
-    console.log("Status API Response:", JSON.stringify(resultData))
+    // 并发查询所有 taskId
+    const results = await Promise.all(
+      taskIds.map(async (id) => {
+        const resultRes = await fetch(`${NANO_BASE_URL}/v1/draw/result`, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${NANO_API_KEY}`,
+          },
+          body: JSON.stringify({ id }),
+        })
+        const resultData = await resultRes.json()
+        console.log("Status API Response:", id, JSON.stringify(resultData))
 
-    if (!resultRes.ok) {
-      return Response.json({ status: "failed", error: resultData?.msg || "查询失败" })
+        if (!resultRes.ok) {
+          return { status: "failed", error: resultData?.msg || "查询失败" }
+        }
+        if (resultData?.code !== undefined && resultData.code !== 0) {
+          return { status: "failed", error: resultData.msg || "查询返回异常状态码" }
+        }
+
+        const taskStatus = resultData?.data?.status
+        const url = resultData?.data?.results?.[0]?.url
+
+        if (taskStatus === "succeeded") {
+          if (!url) return { status: "failed", error: "生成成功但未返回图片地址" }
+          return { status: "succeeded", url }
+        }
+        if (taskStatus === "failed") {
+          return { status: "failed", error: resultData?.data?.error || "生成失败" }
+        }
+        return { status: "processing" }
+      })
+    )
+
+    // 汇总结果
+    const allSucceeded = results.every((r) => r.status === "succeeded")
+    const anyFailed = results.some((r) => r.status === "failed")
+
+    if (allSucceeded) {
+      const images = results.map((r) => r.url).filter(Boolean)
+      return Response.json({ status: "succeeded", images })
     }
 
-    // Upstream returned a non-zero code without a valid data.status
-    if (resultData?.code !== undefined && resultData.code !== 0) {
-      return Response.json({ status: "failed", error: resultData.msg || "查询返回异常状态码" })
+    if (anyFailed) {
+      const failMsg = results.find((r) => r.status === "failed")?.error || "部分任务生成失败"
+      return Response.json({ status: "failed", error: failMsg })
     }
 
-    const taskStatus = resultData?.data?.status
-
-    if (taskStatus === "succeeded") {
-      const url = resultData?.data?.results?.[0]?.url
-      if (!url) return Response.json({ status: "failed", error: "生成成功但未返回图片地址" })
-      return Response.json({ status: "succeeded", images: [url] })
-    }
-
-    if (taskStatus === "failed") {
-      return Response.json({ status: "failed", error: resultData?.data?.error || "生成失败" })
-    }
-
-    // Only return processing if taskStatus is a known in-progress value
-    if (taskStatus === "processing" || taskStatus === "pending" || taskStatus === "running") {
-      return Response.json({ status: "processing" })
-    }
-
-    // Unknown state — treat as error to avoid infinite polling
-    return Response.json({ status: "failed", error: `未知任务状态: ${taskStatus ?? "无"}` })
+    return Response.json({ status: "processing" })
   } catch (error) {
     console.error("Status Poll Error:", error)
     return Response.json({ status: "failed", error: error?.message || "查询失败" })
