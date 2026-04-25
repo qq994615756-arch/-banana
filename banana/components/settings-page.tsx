@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useCallback } from "react"
 import {
   ArrowLeft,
   Settings,
@@ -15,6 +15,7 @@ import { Button } from "./ui/button"
 import { Progress } from "./ui/progress"
 import { cn } from "../lib/utils"
 import { useAppStore } from "../lib/store"
+import { useTheme } from "next-themes"
 // 引入 Select 组件
 import {
   Select,
@@ -286,11 +287,26 @@ function InviteFriendsTab({
 }
 
 function GeneralTab() {
+  const { theme, setTheme } = useTheme()
+  const [language, setLanguage] = useState(() => {
+    if (typeof window !== "undefined") {
+      return localStorage.getItem("app-language") || "zh"
+    }
+    return "zh"
+  })
+
+  const handleLanguageChange = useCallback((value: string) => {
+    setLanguage(value)
+    localStorage.setItem("app-language", value)
+    // 触发自定义事件，通知其他组件语言变更
+    window.dispatchEvent(new CustomEvent("language-change", { detail: value }))
+  }, [])
+
   return (
     <div className="space-y-8">
       <h1 className="text-xl font-semibold">通用设置</h1>
       <div className="space-y-4">
-        {/* 【修改点】主题设置单行显示 + Select 组件 */}
+        {/* 主题设置单行显示 + Select 组件 */}
         <div className="flex items-center justify-between rounded-xl border border-border p-5">
           <div>
             <h3 className="font-medium">主题外观</h3>
@@ -298,7 +314,7 @@ function GeneralTab() {
               系统会自动跟随您的设备主题设置。
             </p>
           </div>
-          <Select defaultValue="system">
+          <Select value={theme || "system"} onValueChange={setTheme}>
             <SelectTrigger className="w-[140px]">
               <SelectValue placeholder="选择主题" />
             </SelectTrigger>
@@ -310,7 +326,7 @@ function GeneralTab() {
           </Select>
         </div>
 
-        {/* 【修改点】语言设置单行显示 + Select 组件 */}
+        {/* 语言设置单行显示 + Select 组件 */}
         <div className="flex items-center justify-between rounded-xl border border-border p-5">
           <div>
             <h3 className="font-medium">界面语言</h3>
@@ -318,7 +334,7 @@ function GeneralTab() {
               选择您偏好的系统展示语言。
             </p>
           </div>
-          <Select defaultValue="zh">
+          <Select value={language} onValueChange={handleLanguageChange}>
             <SelectTrigger className="w-[140px]">
               <SelectValue placeholder="选择语言" />
             </SelectTrigger>
